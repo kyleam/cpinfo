@@ -64,16 +64,25 @@ file."
         (read (current-buffer))))))
 
 (defun cpinfo-write-paths-file (directory value)
-  (with-temp-file (expand-file-name cpinfo-pathfile directory)
-    (let ((print-length nil))
-      (print (mapcar (lambda (k) (assoc k value))
-                     (sort (delete-dups (mapcar #'car value))
-                           #'string-lessp))
-             (current-buffer)))
-    (goto-char (point-min))
-    (while (re-search-forward ") " nil t)
-      (unless (nth 3 (syntax-ppss))
-        (replace-match ")\n ")))))
+  (let ((fpaths (mapcar
+                 (lambda (v)
+                   (let ((fname (car v)))
+                     (cons (file-name-nondirectory fname) fname)))
+                 value)))
+    (with-temp-file (expand-file-name cpinfo-pathfile directory)
+      (let ((print-length nil))
+        (print (mapcar
+                (lambda (k) (assoc (cdr (assoc k fpaths)) value))
+                (sort (delete-dups
+                       ;; Map from base name rather than full path to
+                       ;; catch any changes in the source directory.
+                       (mapcar #'car fpaths))
+                      #'string-lessp))
+               (current-buffer)))
+      (goto-char (point-min))
+      (while (re-search-forward ") " nil t)
+        (unless (nth 3 (syntax-ppss))
+          (replace-match ")\n "))))))
 
 (defun cpinfo-read-destination ()
   (expand-file-name
