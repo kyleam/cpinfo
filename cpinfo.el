@@ -56,6 +56,10 @@ These functions will be called with the full path of the source
 file."
   :type '(choice function))
 
+(defcustom cpinfo-skip-writeprotected t
+  "If non-nil, skip write-protected files in destination directory."
+  :type 'boolean)
+
 (defun cpinfo-read-paths-file (directory)
   (let ((path-file (expand-file-name cpinfo-pathfile directory)))
     (when (file-exists-p path-file)
@@ -136,15 +140,18 @@ Record source information in `cpinfo-pathfile'."
   (let ((dirpaths (cpinfo-read-paths-file directory))
         (ncopied 0))
     (dolist (f files)
-      (let ((new-file (expand-file-name (file-name-nondirectory f) directory)))
-        (if (not (file-writable-p new-file))
-            (message "Skipping write-protected file: %s" new-file)
-          (copy-file f new-file t)
-          (cl-incf ncopied)
-          (push
-           (cons f (delq nil (mapcar (lambda (func) (funcall func f))
-                                     cpinfo-info-functions)))
-           dirpaths))))
+      (let* ((new-file (expand-file-name (file-name-nondirectory f) directory))
+             (protected-p (not (file-writable-p new-file))))
+        (if (and protected-p cpinfo-skip-writeprotected)
+            (message "Skipping write-protected file: %s" new-file))
+        (when protected-p
+          (delete-file new-file))
+        (copy-file f new-file t)
+        (cl-incf ncopied)
+        (push
+         (cons f (delq nil (mapcar (lambda (func) (funcall func f))
+                                   cpinfo-info-functions)))
+         dirpaths)))
     (when (> ncopied 0)
       (message "Copied %s file(s) to %s" ncopied directory)
       (cpinfo-write-paths-file directory dirpaths))))
