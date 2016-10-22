@@ -157,6 +157,45 @@ Record source information in `cpinfo-pathfile'."
       (cpinfo-write-paths-file directory dirpaths))))
 
 ;;;###autoload
+(defun cpinfo-clone (files directory)
+  "Copy FILES from a destination directory to DIRECTORY.
+Like `cpinfo-copy', but for files that are already in a directory
+with a cpinfo paths file.  This cpinfo paths file in the source
+directory is used to create entries for the copied files in
+DIRECTORY's cpinfo paths file."
+  (interactive
+   (list (if (derived-mode-p 'dired-mode)
+             (dired-get-marked-files nil current-prefix-arg)
+           (list (read-file-name "File to transplant: " nil nil t)))
+         (cpinfo-destination)))
+  (let ((source-entries
+         (mapcar (lambda (x)
+                   (cons (file-name-nondirectory (car x)) x))
+                 (or (cpinfo-read-paths-file default-directory)
+                     (user-error "No paths in current directory"))))
+        (dest-paths (cpinfo-read-paths-file directory))
+        (ncopied 0))
+    (dolist (f files)
+      (let* ((base-file (file-name-nondirectory f))
+             (new-file (expand-file-name base-file directory))
+             (protected-p (not (file-writable-p new-file)))
+             (entry (cdr (assoc-string base-file source-entries))))
+        (cond
+         ((not entry)
+          (message "%s does not have paths entry.  Skipping." base-file))
+         ((and protected-p cpinfo-skip-writeprotected)
+          (message "Skipping write-protected file: %s" new-file))
+         (t
+          (when protected-p
+            (delete-file new-file))
+          (copy-file f new-file t)
+          (cl-incf ncopied)
+          (push entry dest-paths)))))
+    (when (> ncopied 0)
+      (message "Copied %s file(s) to %s" ncopied directory)
+      (cpinfo-write-paths-file directory dest-paths))))
+
+;;;###autoload
 (defun cpinfo-update-paths-file (directory)
   "Delete `cpinfo-pathfile' entries that do not exist in DIRECTORY."
   (interactive (list (cpinfo-destination)))
