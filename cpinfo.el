@@ -84,9 +84,21 @@ file."
         (unless (nth 3 (syntax-ppss))
           (replace-match ")\n "))))))
 
+(defvar cpinfo-last-destination nil)
+
 (defun cpinfo-read-destination ()
-  (expand-file-name
-   (read-directory-name "Directory: " cpinfo-root nil t)))
+  (setq cpinfo-last-destination
+        (expand-file-name
+         (read-directory-name
+          (concat "Directory"
+                  (and cpinfo-last-destination
+                       (format " (default: %s)"
+                               (abbreviate-file-name
+                                cpinfo-last-destination)))
+                  ": ")
+          cpinfo-root
+          cpinfo-last-destination
+          t))))
 
 (defvar cpinfo-destination-directory nil)
 
