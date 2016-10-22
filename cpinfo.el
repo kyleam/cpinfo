@@ -119,7 +119,7 @@ Record source information in `cpinfo-pathfile'."
   (interactive
    (list (if (derived-mode-p 'dired-mode)
              (dired-get-marked-files nil current-prefix-arg)
-           (read-file-name "File to copy: " nil nil t))
+           (list (read-file-name "File to copy: " nil nil t)))
          (cpinfo-destination)))
   (let ((dirpaths (cpinfo-read-paths-file directory))
         (ncopied 0))
